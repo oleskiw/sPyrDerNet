@@ -7,7 +7,7 @@ module load cuda/8.0.44 pytorch/python3.6/0.3.0_4
 #you can setup the virtualenv using virtualenv [name of folder for virtualenv i.e. "pytorchenv"]
 virtualenv pytorchenv
 #activate virtualenv using 
-source pyvirtualenv/bin/activate
+source pytorchenv/bin/activate
 #pip install the following packages
 pip install numpy, scipy, matplotlib, h5py, cffi==1.11.4, jupyter
 
