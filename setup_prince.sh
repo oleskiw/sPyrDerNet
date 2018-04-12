@@ -22,9 +22,8 @@ python setup.py install
 cd ~/sPyrDerNet/ #replace with your directory for this repo
 unzip pytorch_fft_built.zip -d ~/pytorchenv/lib/python3.6/site-packages/pytorch_fft-0.14-py3.6-linux-x86_64.egg/pytorch_fft
 
-cd ~
-#Now clone the steerable pyramid repository
-git clone https://github.com/olivierhenaff/steerablePyramid.git
+cd ~/sPyrDerNet
+
 
 
 
