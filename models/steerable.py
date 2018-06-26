@@ -3,11 +3,10 @@ Code taken from https://github.com/olivierhenaff/steerablePyramid.git
 '''
 
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
-import pytorch_fft.fft.autograd as fft
 
 from steerableUtils import *  
+from config import *
 
 class SteerablePyramid(nn.Module):
 
@@ -15,7 +14,7 @@ class SteerablePyramid(nn.Module):
         super(SteerablePyramid, self).__init__()
 
         size = [ imgSize, imgSize//2 + 1 ]
-        self.hl0 = Variable( HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda() )
+        self.hl0 = HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
 
         self.l = []
         self.b = []
@@ -26,17 +25,16 @@ class SteerablePyramid(nn.Module):
         self.hilb = hilb
         self.includeHF = includeHF 
 
-        self.indF = [ freq_shift( size[0], True  ) ] 
+        self.indF = [ freq_shift( size[0], True  ) ]
         self.indB = [ freq_shift( size[0], False ) ] 
-
-        self.fftF =   fft.Rfft2d()
-        self.fftB = [ fft.Irfft2d() ]
+        self.pyr = []
+        self.pind = torch.zeros([K*N+2, 2])
 
         for n in range( self.N ):
 
-            l = Variable( L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda() )
-            b = Variable( B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()              )
-            s = Variable( S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()              )
+            l = L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
+            b = B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
+            s = S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
 
             self.l.append( l.div_(4) )
             self.b.append( b )
@@ -46,15 +44,14 @@ class SteerablePyramid(nn.Module):
 
             self.indF.append( freq_shift( size[0], True  ) )
             self.indB.append( freq_shift( size[0], False ) )
-            self.fftB.append( fft.Irfft2d() ) 
-
 
     def forward(self, x):
 
-        x1, x2 = self.fftF(x)
-        x = torch.cat((x1.unsqueeze(1), x2.unsqueeze(1)), 1 ).unsqueeze( -3 )
+        fftfull = torch.rfft(x,2)
+        xreal = fftfull[... , 0]
+        xim = fftfull[... ,1]
+        x = torch.cat((xreal.unsqueeze(1), xim.unsqueeze(1)), 1 ).unsqueeze( -3 )
         x = torch.index_select( x, -2, self.indF[0] )
-
         x   = self.hl0 * x 
         h0f = x.select( -3, 0 ).unsqueeze( -3 )
         l0f = x.select( -3, 1 ).unsqueeze( -3 )
@@ -78,7 +75,9 @@ class SteerablePyramid(nn.Module):
 
         for n in range( len( output ) ):
             output[n] = torch.index_select( output[n], -2, self.indB[n] )
-            output[n] = self.fftB[n]( output[n].select( 1, 0 ), output[n].select( 1, 1 ) )
+            sig_size = output[n].shape[-2]
+            output[n] = torch.stack((output[n].select(1,0), output[n].select(1,1)),-1)
+            output[n] = torch.irfft( output[n], 2, signal_sizes = [sig_size, sig_size])
 
         if self.includeHF:
             output.insert( 0, output[0].narrow( -3, 0, 1                    ) )
@@ -94,43 +93,15 @@ class SteerablePyramid(nn.Module):
                 else:
                     output[n] = output[n].unsqueeze(1)
 
-        return output
+        #convert outputs to similar form as in matlab code
+        pind_ind = 0
+        for scale in range(len(output)):
+            if scale == 0:
+                self.pyr = output[0].permute(0,1,2,4,3).contiguous().view(output[0].size(0),-1)
+            else:
+                self.pyr = torch.cat((self.pyr, output[scale].permute(0,1,2,4,3).contiguous().view(output[scale].size(0),-1)), 1) 
+            for i in range(output[scale].size(2)):
+                self.pind[pind_ind]=torch.Tensor([output[scale].size(-2), output[scale].size(-1)])
+                pind_ind += 1
 
-
-def testSteerable():
-
-    imgSize = 128 
-    network = SteerablePyramid( imgSize=imgSize, K=4, N=4 )
-
-    x = torch.Tensor( 1, 1, imgSize, imgSize ).fill_(0)
-    x.select( -1, imgSize//2 ).select( -1, imgSize//2 ).fill_( 1 )
-    x = x.cuda()
-    x = Variable( x, requires_grad=True ) 
-
-    y = network( x ) 
-
-    for i in range(len(y)):
-        y[i].backward( y[i] ) 
-    z = x.grad
-
-
-    print( '\ninput size' )
-    print( x.size() ) 
-
-    print( '\noutput size' )
-    for i in range(len(y)):
-        img = y[i].data#.select(0,0)#.select(0,0)           
-        # img = img.view( -1, img.size(-2), img.size(-1) )
-        print( i, img.size() )
-        # for j in range(img.size(0)):
-        #     scale = 127.5 / max( img[j].max(), - img[j].min() )
-        #     im = Image.fromarray( img[j].mul(scale).add(127.5).cpu().numpy().astype(numpy.uint8) )
-        #     im.save( 'steerable_' + str(i) + '_' + str(j) + '.png' )
-
-    print( '\nreconstruction size')
-    print( z.size() ) 
-
-
-    print( '\nreconstruction error', x.dist( z ).data.squeeze() ) 
-
-testSteerable()
+        return self.pyr,  self.pind
