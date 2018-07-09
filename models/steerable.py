@@ -2,11 +2,8 @@
 Code taken from https://github.com/olivierhenaff/steerablePyramid.git
 '''
 
-import torch
-import torch.nn as nn
-
-from steerableUtils import *  
-from config import *
+import torch.nn as nn 
+from .steerableUtils import *
 
 class SteerablePyramid(nn.Module):
 

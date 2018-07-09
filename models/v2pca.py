@@ -1,8 +1,7 @@
-import torch 
+import torch
 import torch.nn as nn
-from steerable import *
-from genutils import *
-
+from .steerable import *
+from .genutils import *
 
 class V2PCA(nn.Module):
 
@@ -57,12 +56,3 @@ class V2PCA(nn.Module):
             return coeff_out, pyr, pind
         else:
             return coeff_out
-
-
-def PCA(X):
-    X_mean = torch.mean(X, 1, True)
-    X = X - X_mean.expand_as(X)
-    U,S,V = torch.svd(X)
-    
-    return U,S,V
-
