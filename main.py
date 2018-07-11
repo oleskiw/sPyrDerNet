@@ -40,7 +40,7 @@ def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca
 
     printout("Data loaded, impatch shape:" +  str(impatch.shape))
     printout("Building pyramid...")
-    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = window, pcaMat = None, ret_pyr = False, ncomp=32)
+    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = None, pcaMat = None, ret_pyr = False, ncomp=32)
     x = impatch.reshape([impatch.shape[0], 1, impatch.shape[1], impatch.shape[2]])
     x = torch.tensor(x, dtype=dtype).to(device)
     coeff = network(x)
@@ -61,7 +61,7 @@ def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca
         compmat = compmat.data.cpu().numpy()
     if use_window:
         compmatold = compmat
-        compmat = np.zeros((window.size(0), compmatold.shape[1]))
+        compmat = np.zeros((window.size(0), compmatold.shape[1]))+1e-8
         compmat[windowinds,:] = compmatold
 
     printout(compmat.shape)
@@ -69,7 +69,6 @@ def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca
     h5f.create_dataset('dat', data=compmat, compression='gzip')
     h5f.close()
 
-    
 
 
 def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4):
@@ -80,10 +79,11 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
     '''
     imagelist = []
     output_orig = network(x.clone())
-    optimizer = SGD([x],lr=5)
+    optimizer = SGD([x],lr=0.1)
     index_vec = np.arange(output_orig.size(1))
     index_vec = np.delete(index_vec, comp_index)
-    for i in range(num_steps):
+    print_iters = 200/num_steps
+    for i in range(200):
         #renormalize images to mean 0 std 1 before next gradient step
         def closure():
             x.data = (x.data-x.data.mean())/x.data.std()
@@ -93,12 +93,14 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
                 loss1 = -output[0,comp_index]
             elif opt_type == 'min':
                 loss1 = output[0, comp_index]
-            #loss2 = torch.mean((output_orig[0,index_vec] - output[0, index_vec])**2)
-            loss = loss1
+            loss2 = (output_orig[0,index_vec] - output[0, index_vec]).norm()
+            loss = loss1 + loss2
             loss.backward(retain_graph=True)
-           # printout("Component Vector: " + str(np.around(output.data.cpu().numpy(), decimals=2)))
-           # printout("Loss over other components: " + str(loss2.data.cpu().numpy()))
-           # printout("Component " + str(comp_index) + " " + str(output[0,comp_index].data.cpu().numpy()))
+            if i %print_iters ==0:
+                printout("Component Vector: " + str(np.around(output.data.cpu().numpy(), decimals=2)))
+                printout("Loss over other components: " + str(loss2.data.cpu().numpy()))
+                printout("Component " + str(comp_index) + " " + str(output[0,comp_index].data.cpu().numpy()))
+                print("Total Loss " + str(loss.data.cpu().numpy()))
             return loss
 
         optimizer.step(closure)
@@ -180,7 +182,7 @@ def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_wi
 
 
 def main():
-   # compute_componentmat(dimreduce='pca', use_window = True, num_textures = 10, max_patches = 800)
+    #compute_componentmat(dimreduce='pca', use_window = True, num_textures = 10, max_patches = 800)
     run_gradsynth()
 
 
