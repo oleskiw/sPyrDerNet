@@ -17,11 +17,12 @@ np.random.seed(5)
     
  
 
-def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca', use_window = True, num_textures=10, max_patches = 800):
-    '''
+def compute_componentmat(savepath = './output/', dataset='mat', dimreduce='pca', use_window=True, num_textures=10, max_patches=800):
+    """
     can choose between pca, ica, or zca for dimreduce option
     returns matrix of size num_coefficients (output of steerable pyramid and rectification) x num_components
-    '''
+    """
+
     if dataset == 'mat':
        impatch, im_inds,matdata = matfile_dataload(precomp = False, num_textures = 10, max_patches = 800)  
     elif dataset == 'lcv':
@@ -72,11 +73,11 @@ def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca
 
 
 def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4):
-    '''
+    """
     For a given network and input image x, optimize the pixels in x such that the output
     component (given by comp_index) is maximized or minimized (given by opt_type).
     Generate num_steps gradient steps and return the image list
-    '''
+    """
     imagelist = []
     output_orig = network(x.clone())
     optimizer = SGD([x],lr=0.1)
@@ -110,10 +111,10 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
     
 
 def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_window = True):
-    '''
+    """
     Main method that utilizes the component_gradsynth to generate images that max/min
     output components and saves images in a single image file
-    '''
+    """
 
     if dataset == 'mat':
        impatch, im_inds,matdata = matfile_dataload(precomp = False, num_textures = 10, max_patches = 800)  
