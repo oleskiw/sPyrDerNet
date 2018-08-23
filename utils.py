@@ -1,8 +1,8 @@
 import os,sys
 import numpy as np
-'''
+"""
 Utility functions for main.py
-'''
+"""
 
 
 def printout(string):

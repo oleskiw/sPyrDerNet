@@ -31,14 +31,67 @@ def choose_impatch(imarr,expressmat, method = 'rand', comp_indices = None, num_p
     '''
     pass
 
+def compute_componentmat(savepath = './output/', dataset='mat', dimreduce='pca', use_window=True, num_textures=10, max_patches=800):
+    """
+    can choose between pca, ica, or zca for dimreduce option
+    returns matrix of size num_coefficients (output of steerable pyramid and rectification) x num_components
+    """
+
+    if dataset == 'mat':
+       impatch, im_inds,matdata = matfile_dataload(precomp = False, num_textures = 10, max_patches = 800)  
+    elif dataset == 'lcv':
+        matdata = matfile_dataload(rawdat = True)
+        impatch, im_inds = h5py_dataload(num_textures=num_textures, max_patches=max_patches)
+
+    if use_window:
+        window = np.array(matdata['data'][0][0]['f'][0][0]['coeffWeights'])
+        windowbool = np.array(matdata['data'][0][0]['f'][0][0]['coeffIndex'])[:,0]
+        windowinds = np.nonzero(windowbool)[0]
+        window = torch.tensor(window, dtype=dtype).to(device)
+    else:
+        window = None
+    del matdata
+    
+
+    printout("Data loaded, impatch shape:" +  str(impatch.shape))
+    printout("Building pyramid...")
+    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = None, pcaMat = None, ret_pyr = False, ncomp=32)
+    x = impatch.reshape([impatch.shape[0], 1, impatch.shape[1], impatch.shape[2]])
+    x = torch.tensor(x, dtype=dtype).to(device)
+    coeff = network(x)
+    if use_window:
+        coeff = coeff[:,windowinds]
+    printout("Coeffs generated...")
+
+    del x
+    torch.cuda.empty_cache()
+    printout("Computing dimreduce for " + dimreduce)
+    if dimreduce =='zca':
+        compmat = ZCA(coeff)
+        compmat = compmat.data.cpu().numpy()
+    elif dimreduce == 'ica':
+        compmat = ICA(coeff)
+    elif dimreduce == 'pca':
+        compmat = PCA(coeff)
+        compmat = compmat.data.cpu().numpy()
+    if use_window:
+        compmatold = compmat
+        compmat = np.zeros((window.size(0), compmatold.shape[1]))+1e-8
+        compmat[windowinds,:] = compmatold
+
+    printout(compmat.shape)
+    h5f = h5py.File(savepath + dimreduce + 'mat.h5', 'w')
+    h5f.create_dataset('dat', data=compmat, compression='gzip')
+    h5f.close()
+
 
 
 def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4):
-    '''
+    """
     For a given network and input image x, optimize the pixels in x such that the output
     component (given by comp_index) is maximized or minimized (given by opt_type).
     Generate num_steps gradient steps and return the image list
-    '''
+    """
     imagelist = []
     complist = []
     output_orig = network(x.clone())
@@ -75,10 +128,10 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
      
 
 def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_window = True):
-    '''
+    """
     Main method that utilizes the component_gradsynth to generate images that max/min
     output components and saves images in a single image file
-    '''
+    """
 
     if dataset == 'mat':
        impatch, im_inds,matdata = matfile_dataload(precomp = False, num_textures = 10, max_patches = 800)  
