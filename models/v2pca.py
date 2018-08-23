@@ -37,8 +37,8 @@ class V2PCA(nn.Module):
 
     def forward(self, x):
         pyr, pind = self.sPyr(x)
-        if self.nonlin == 'quadratic':
-            trans_coeff = quad_activ(pyr)
+        if self.nonlin == 'smoothabs':
+            trans_coeff = smoothabs_activ(pyr)
         else:
             raise NotImplementedError
         

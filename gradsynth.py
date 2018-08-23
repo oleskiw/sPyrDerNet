@@ -5,7 +5,6 @@ from models.genutils import *
 from config import *
 import numpy as np
 from models.v2pca import *
-from dimred import ZCA,ICA,PCA
 from utils import *
 import matplotlib
 matplotlib.use('Agg')
@@ -17,57 +16,20 @@ np.random.seed(5)
     
  
 
-def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca', use_window = True, num_textures=10, max_patches = 800):
+def choose_impatch(imarr,expressmat, method = 'rand', comp_indices = None, num_patches = None):
     '''
-    can choose between pca, ica, or zca for dimreduce option
-    returns matrix of size num_coefficients (output of steerable pyramid and rectification) x num_components
+    input: 
+    imarr: (array of image patches)
+    expressmat: component expression mat given by running images through v2pca network
+    method: possible methods for choosing image patches to run component synthesis
+            all methods include white noise image as first image
+            rand: choose random patches from the provided patch array imarr
+            minmax: choose two patches for each component in comp_indices that have min and max expression in that component
+            dist: choose three patches min,max,and median expression in components in comp_indices
+    comp_indices: list of component indices 
+    num_patches: for 'rand' method only- provide number of patches to select        
     '''
-    if dataset == 'mat':
-       impatch, im_inds,matdata = matfile_dataload(precomp = False, num_textures = 10, max_patches = 800)  
-    elif dataset == 'lcv':
-        matdata = matfile_dataload(rawdat = True)
-        impatch, im_inds = h5py_dataload(num_textures=num_textures, max_patches=max_patches)
-
-    if use_window:
-        window = np.array(matdata['data'][0][0]['f'][0][0]['coeffWeights'])
-        windowbool = np.array(matdata['data'][0][0]['f'][0][0]['coeffIndex'])[:,0]
-        windowinds = np.nonzero(windowbool)[0]
-        window = torch.tensor(window, dtype=dtype).to(device)
-    else:
-        window = None
-    del matdata
-    
-
-    printout("Data loaded, impatch shape:" +  str(impatch.shape))
-    printout("Building pyramid...")
-    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = None, pcaMat = None, ret_pyr = False, ncomp=32)
-    x = impatch.reshape([impatch.shape[0], 1, impatch.shape[1], impatch.shape[2]])
-    x = torch.tensor(x, dtype=dtype).to(device)
-    coeff = network(x)
-    if use_window:
-        coeff = coeff[:,windowinds]
-    printout("Coeffs generated...")
-
-    del x
-    torch.cuda.empty_cache()
-    printout("Computing dimreduce for " + dimreduce)
-    if dimreduce =='zca':
-        compmat = ZCA(coeff)
-        compmat = compmat.data.cpu().numpy()
-    elif dimreduce == 'ica':
-        compmat = ICA(coeff)
-    elif dimreduce == 'pca':
-        compmat = PCA(coeff)
-        compmat = compmat.data.cpu().numpy()
-    if use_window:
-        compmatold = compmat
-        compmat = np.zeros((window.size(0), compmatold.shape[1]))+1e-8
-        compmat[windowinds,:] = compmatold
-
-    printout(compmat.shape)
-    h5f = h5py.File(savepath + dimreduce + 'mat.h5', 'w')
-    h5f.create_dataset('dat', data=compmat, compression='gzip')
-    h5f.close()
+    pass
 
 
 
@@ -78,6 +40,7 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
     Generate num_steps gradient steps and return the image list
     '''
     imagelist = []
+    complist = []
     output_orig = network(x.clone())
     optimizer = SGD([x],lr=0.1)
     index_vec = np.arange(output_orig.size(1))
@@ -85,29 +48,31 @@ def component_gradsynth(x, network, comp_index = 0, opt_type ='max', num_steps=4
     print_iters = 200/num_steps
     for i in range(200):
         #renormalize images to mean 0 std 1 before next gradient step
-        def closure():
-            x.data = (x.data-x.data.mean())/x.data.std()
-            optimizer.zero_grad()
-            output = network(x)
-            if opt_type == 'max':
-                loss1 = -output[0,comp_index]
-            elif opt_type == 'min':
-                loss1 = output[0, comp_index]
-            loss2 = (output_orig[0,index_vec] - output[0, index_vec]).norm()
-            loss = loss1 + loss2
-            loss.backward(retain_graph=True)
-            if i %print_iters ==0:
-                printout("Component Vector: " + str(np.around(output.data.cpu().numpy(), decimals=2)))
-                printout("Loss over other components: " + str(loss2.data.cpu().numpy()))
-                printout("Component " + str(comp_index) + " " + str(output[0,comp_index].data.cpu().numpy()))
-                print("Total Loss " + str(loss.data.cpu().numpy()))
-            return loss
+        x.data = (x.data-x.data.mean())/x.data.std()
+        optimizer.zero_grad()
+        output = network(x)
+        if opt_type == 'max':
+            loss1 = -output[0,comp_index]
+        elif opt_type == 'min':
+            loss1 = output[0, comp_index]
+        loss2 = (output_orig[0,index_vec] - output[0, index_vec]).norm()
+        loss = loss1 + loss2
+        loss.backward(retain_graph=True)
+        if i %print_iters ==0:
+            outtmp = output.clone()
+            outtmpnp = outtmp.data.cpu().numpy()
+            printout("Component Vector: " + str(np.around(outtmpnp, decimals=2)))
+            printout("Loss over other components: " + str(loss2.data.cpu().numpy()))
+            printout("Component " + str(comp_index) + " " + str(output[0,comp_index].data.cpu().numpy()))
+            print("Total Loss " + str(loss.data.cpu().numpy()))
+            complist.append(np.around(outtmpnp,decimals=2))
+            imagelist.append(x.clone())
 
-        optimizer.step(closure)
-        imagelist.append(x.clone())
-    return imagelist
+        optimizer.step()
 
-    
+    return imagelist, complist
+
+     
 
 def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_window = True):
     '''
@@ -132,7 +97,7 @@ def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_wi
     dimreducemat = h5py.File(savepath + dimreduce + 'mat.h5', 'r')['dat'][()]
     dimreducemat = torch.tensor(dimreducemat, dtype=dtype).to(device)   
 
-    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = window, pcaMat = dimreducemat, ret_pyr = False, ncomp=32)
+    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='smoothabs', window = window, pcaMat = dimreducemat, ret_pyr = False, ncomp=32)
     
     printout("Network and data loaded...")
 
@@ -140,24 +105,28 @@ def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_wi
     imsize = 64
     wn_image = np.random.randn(imsize, imsize)
     impatches.append(wn_image)
-    numpatches = 4
+    numpatches = 3
     for i in range(numpatches):
         ind = np.random.randint(0,impatch.shape[0])
         impatches.append(impatch[ind].reshape([imsize,imsize]))
     num_steps = 4
     for comp_index in range(1,6):
         synth_list = []
+        comp_list = []
         printout("Running synthesis for component " + str(comp_index))
         num_patch = 0 
         for im in impatches:
             num_patch += 1
             synth_list_im = []
+            comp_list_im = []
             printout("Running image " + str(num_patch))
             for opt_type in ['max', 'min']:
                 x = torch.tensor(im.reshape([1,1,im.shape[0], im.shape[1]]), dtype=dtype).to(device)
                 x.requires_grad_()
-                synth_images = component_gradsynth(x, network, comp_index, opt_type = opt_type,num_steps=num_steps)
+                synth_images, comp_vals = component_gradsynth(x, network, comp_index, opt_type = opt_type,num_steps=num_steps)
+                comp_list_im.append(comp_vals)
                 synth_list_im.append(synth_images)
+            comp_list.append(comp_list_im)
             synth_list.append(synth_list_im)
     
 
@@ -182,7 +151,6 @@ def run_gradsynth(savepath = './output/', dataset='mat', dimreduce='pca', use_wi
 
 
 def main():
-    #compute_componentmat(dimreduce='pca', use_window = True, num_textures = 10, max_patches = 800)
     run_gradsynth()
 
 
