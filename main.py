@@ -10,7 +10,7 @@ import torch
 def main():
     # set filename parameter
     filename = 'bundle_64_1024_1-2-3_1'
-    dirname = './sPyrDerNet/data/'
+    dirname = './data/'
 
     # load network datafile
     network = loadmodel_mat(data_path=dirname+filename+'_model.mat')
@@ -88,7 +88,7 @@ def main():
     dataOut = {'imgSpyr': outputImgSpyr, 'expression': outputExp,
                'intermediateExpression': interExp, 'intermediateObjective': interObj, 'intermediateSpyr': interSpyr}
 
-    saveoutput_mat(data_path='./sciTest/'+filename+'_output.mat', data=dataOut)
+    saveoutput_mat(data_path='../sciTest/'+filename+'_output.mat', data=dataOut)
     printout('output .mat file written')
 
 
