@@ -1,9 +1,10 @@
-'''
+"""
 Code taken from https://github.com/olivierhenaff/steerablePyramid.git
-'''
+"""
 
 import torch.nn as nn 
 from .steerableUtils import *
+
 
 class SteerablePyramid(nn.Module):
 
@@ -90,8 +91,10 @@ class SteerablePyramid(nn.Module):
                 else:
                     output[n] = output[n].unsqueeze(1)
 
-        #convert outputs to similar form as in matlab code
+        # convert outputs to similar form as in matlab code
         pind_ind = 0
+
+        # swap row/column ordering
         for scale in range(len(output)):
             if scale == 0:
                 self.pyr = output[0].permute(0,1,2,4,3).contiguous().view(output[0].size(0),-1)
@@ -101,4 +104,4 @@ class SteerablePyramid(nn.Module):
                 self.pind[pind_ind]=torch.Tensor([output[scale].size(-2), output[scale].size(-1)])
                 pind_ind += 1
 
-        return self.pyr,  self.pind
+        return self.pyr, self.pind

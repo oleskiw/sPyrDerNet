@@ -1,58 +1,51 @@
-import torch
-import torch.nn as nn
 from .steerable import *
-from .genutils import *
+import torch
+from torch import nn
+
 
 class V2PCA(nn.Module):
 
-
-    def __init__(self, imgSize, K=4, N=2, includeHF=True, nonlin='quadratic', pcaMat = None, window = None, ret_pyr = False, ncomp=32):
+    def __init__(self, imgSize=64, K=4, N=2, includeHF=True, weights=None, components=None,
+                 transferFunction='softAbs', ncomp=32):
         super(V2PCA, self).__init__()
 
-        '''
+        """
         V2PCA model
         Uses the steerable pyramid, followed by quadratic nonlinearity,
         hamming circular windowing, and PCA on the output coefficients
-        
-        args:
-            imgSize: input image size
-            K: number of steerable pyramid orientations
-            N: number of steerable pyramid levels
-            includeHF: include high frequency residual in vector output
-            nonlin: type of nonlinearity after steerable pyramid
-            pcaMat: if you already have PCA computed, can use the matrix to compute
-            projections of the coefficients onto the PCA components
-            window: vector of size Mx1 (where M is the number of steerable coefficients) - elementwise product with coefficients to apply window
-            ncomp: number of PCA components to keep
-        '''
-        self.sPyr = SteerablePyramid(imgSize=imgSize, K=4, N=2, includeHF=True)
+        """
+
+        self.sPyr = SteerablePyramid(imgSize=imgSize, K=K, N=N, includeHF=includeHF)
         self.ncomp = ncomp
-        self.nonlin = nonlin
-        self.ret_pyr = ret_pyr
-        if pcaMat is not None:
-            self.pcaMat = pcaMat[:,0:self.ncomp-1] #size = JxM where J is number of components and M is number of coefficients after steerably pyramid and windowing
+        self.transferFunction = transferFunction
+        if components is not None:
+            self.components = torch.Tensor(components[:, 0:self.ncomp])  # size = coefficients x components
         else:
-            self.pcaMat = pcaMat
-        self.window = window #size = Mx1
+            self.components = None
+
+        if weights is not None:
+            self.weights = torch.Tensor(weights)  # size = Mx1
+        else:
+            self.weights = None
 
     def forward(self, x):
-        pyr, pind = self.sPyr(x)
-        if self.nonlin == 'quadratic':
-            trans_coeff = quad_activ(pyr)
+        # transform to pyramid
+        # pyr, pind = self.sPyr(x)
+        # here we assume x is the pyramid coefficients
+
+        # apply nonlinearity
+        if self.transferFunction == 'softAbs':
+            pyr_trans = torch.sqrt(x ** 2 + 0.001)
         else:
             raise NotImplementedError
-        
-        batchsize = pyr.size(0)
-        if self.window is None:
-            coeff_out = trans_coeff
+
+        # apply weights to coefficients
+        if self.weights is None:
+            pyr_weighted = pyr_trans
         else:
-            self.window = self.window.expand(self.window.size(0), batchsize)
-            coeff_out = trans_coeff*torch.t(self.window)
-        if self.pcaMat is None:
-            coeff_out = coeff_out
-        else:
-            coeff_out = torch.mm(coeff_out, self.pcaMat)
-        if self.ret_pyr:
-            return coeff_out, pyr, pind
-        else:
-            return coeff_out
+            pyr_weighted = pyr_trans * torch.t(self.weights)
+
+        # apply components to coefficients
+        component_expression = torch.mm(pyr_weighted, self.components)
+
+        return component_expression, pyr_weighted

@@ -3,6 +3,7 @@ from utils import *
 import numpy as np
 from data_loader import loadmodel_mat, loadtargets_mat, saveoutput_mat
 from torch.optim import SGD
+
 import torch
 
 
@@ -17,6 +18,7 @@ def main():
 
     # load datafile with images and desired component expressions
     dataTargets = loadtargets_mat(data_path=dirname+filename+'_targets.mat')
+
     printout('Targets loaded from .mat file')
 
     # do some processing
@@ -33,6 +35,7 @@ def main():
         imgSpyr = dataTargets['imgSpyr'][i, :]
         imgSpyrTensor = torch.tensor(imgSpyr, dtype=dtype).to(device)
         expTarget = torch.tensor(dataTargets['expressionTarget'][i, :], dtype=dtype).to(device)
+
         imgSpyrDescender = imgSpyrTensor.clone()
         imgSpyrDescender.requires_grad_()
 
@@ -84,6 +87,7 @@ def main():
     # save output
     dataOut = {'imgSpyr': outputImgSpyr, 'expression': outputExp,
                'intermediateExpression': interExp, 'intermediateObjective': interObj, 'intermediateSpyr': interSpyr}
+
     saveoutput_mat(data_path='./sciTest/'+filename+'_output.mat', data=dataOut)
     printout('output .mat file written')
 
