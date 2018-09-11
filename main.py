@@ -37,6 +37,7 @@ def main():
         imgSpyrTensor = torch.Tensor(imgSpyr, device=device)
         expTarget = torch.Tensor(dataTargets['expressionTarget'][i, :], device=device)
 
+        # contsruct feature vector for descent
         imgSpyrDescender = imgSpyrTensor.clone()
         imgSpyrDescender.requires_grad_()
 
