@@ -1,10 +1,11 @@
 from models.v2pca import *
+from config import *
 from utils import *
-import numpy as np
+
 from data_loader import loadmodel_mat, loadtargets_mat, saveoutput_mat
 from torch.optim import SGD
-
 import torch
+import numpy as np
 
 
 def main():
@@ -33,8 +34,8 @@ def main():
 
         # get target data
         imgSpyr = dataTargets['imgSpyr'][i, :]
-        imgSpyrTensor = torch.tensor(imgSpyr, dtype=dtype).to(device)
-        expTarget = torch.tensor(dataTargets['expressionTarget'][i, :], dtype=dtype).to(device)
+        imgSpyrTensor = torch.Tensor(imgSpyr, device=device)
+        expTarget = torch.Tensor(dataTargets['expressionTarget'][i, :], device=device)
 
         imgSpyrDescender = imgSpyrTensor.clone()
         imgSpyrDescender.requires_grad_()

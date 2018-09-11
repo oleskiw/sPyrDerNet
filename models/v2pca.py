@@ -1,5 +1,4 @@
-from .steerable import *
-import torch
+from torch.tensor import *
 from torch import nn
 
 
@@ -15,7 +14,6 @@ class V2PCA(nn.Module):
         hamming circular windowing, and PCA on the output coefficients
         """
 
-        self.sPyr = SteerablePyramid(imgSize=imgSize, K=K, N=N, includeHF=includeHF)
         self.ncomp = ncomp
         self.transferFunction = transferFunction
         if components is not None:
@@ -35,7 +33,7 @@ class V2PCA(nn.Module):
 
         # apply nonlinearity
         if self.transferFunction == 'softAbs':
-            pyr_trans = torch.sqrt(x ** 2 + 0.001)
+            pyr_trans = Tensor.sqrt(x ** 2 + 0.001)
         else:
             raise NotImplementedError
 
@@ -43,9 +41,9 @@ class V2PCA(nn.Module):
         if self.weights is None:
             pyr_weighted = pyr_trans
         else:
-            pyr_weighted = pyr_trans * torch.t(self.weights)
+            pyr_weighted = pyr_trans * Tensor.t(self.weights)
 
         # apply components to coefficients
-        component_expression = torch.mm(pyr_weighted, self.components)
+        component_expression = Tensor.mm(pyr_weighted, self.components)
 
         return component_expression, pyr_weighted
