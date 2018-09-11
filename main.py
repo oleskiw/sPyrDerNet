@@ -4,14 +4,21 @@ import numpy as np
 from data_loader import loadmodel_mat, loadtargets_mat, saveoutput_mat
 from torch.optim import SGD
 
+import torch
+
 
 def main():
+    # set filename parameter
+    filename = 'bundle_64_1024_1-2-3_1'
+    dirname = './sPyrDerNet/data/'
+
     # load network datafile
-    network = loadmodel_mat(data_path='./data/bundleModel_64_1024_3_1.mat')
+    network = loadmodel_mat(data_path=dirname+filename+'_model.mat')
     printout('Network loaded from model .mat file')
 
     # load datafile with images and desired component expressions
-    dataTargets = loadtargets_mat(data_path='./data/bundleModel_64_1024_3_1_Targets.mat')
+    dataTargets = loadtargets_mat(data_path=dirname+filename+'_targets.mat')
+
     printout('Targets loaded from .mat file')
 
     # do some processing
@@ -26,8 +33,9 @@ def main():
 
         # get target data
         imgSpyr = dataTargets['imgSpyr'][i, :]
-        imgSpyrTensor = torch.Tensor(imgSpyr, dtype=dtype).to(device)
-        expTarget = torch.Tensor(dataTargets['expressionTarget'][i, :], dtype=dtype).to(device)
+        imgSpyrTensor = torch.tensor(imgSpyr, dtype=dtype).to(device)
+        expTarget = torch.tensor(dataTargets['expressionTarget'][i, :], dtype=dtype).to(device)
+
         imgSpyrDescender = imgSpyrTensor.clone()
         imgSpyrDescender.requires_grad_()
 
@@ -40,7 +48,7 @@ def main():
         resultSpyr = []
 
         # prepare optimizer
-        optimizer = SGD([imgSpyrDescender], lr=0.25)
+        optimizer = SGD([imgSpyrDescender], lr=0.05)
 
         print("Processing image " + str(i) + " of " + str(dataTargets['img'].shape[0]))
         for stepCount in range(stepMax):
@@ -79,7 +87,8 @@ def main():
     # save output
     dataOut = {'imgSpyr': outputImgSpyr, 'expression': outputExp,
                'intermediateExpression': interExp, 'intermediateObjective': interObj, 'intermediateSpyr': interSpyr}
-    saveoutput_mat(data_path='../sciTest/output.mat', data=dataOut)
+
+    saveoutput_mat(data_path='./sciTest/'+filename+'_output.mat', data=dataOut)
     printout('output .mat file written')
 
 
