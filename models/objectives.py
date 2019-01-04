@@ -37,18 +37,19 @@ def covratio_loss(X,y):
     #solve gen eig problem using cholesky decomposition
     #solves Cy = lambda*y for C = L^-1 A L^-T ; y = L^T x
 
-    #L = torch.potrf(Cw, upper = False)
-
-    #C = torch.mm(torch.inverse(L), torch.mm(Ct, torch.inverse(L.t())))
-    #U,S,V = torch.svd(C)
-    U,S,V = torch.svd(torch.mm(torch.inverse(Cw), Ct))
+    L = torch.potrf(Cw, upper = False)
+    Linv = torch.inverse(L)
+    C = torch.mm(Linv, torch.mm(Ct, Linv.t()))
+    U,S,V = torch.svd(C)
+    #U,S,V = torch.svd(torch.mm(torch.inverse(Cw), Ct))
     evals = torch.diag(torch.diag(S))
+    evals = evals[0:10]
     print(evals)
-    eiggaps = evals[0:-1]-evals[1:]
-    softargmax = torch.dot(Softmax()(eiggaps*10),torch.arange(evals.size(0)-1).to(device))
-    loss = -torch.mean(evals[evals<5])
+    #eiggaps = evals[0:-1]-evals[1:]
+    #softargmax = torch.dot(Softmax()(eiggaps*10),torch.arange(evals.size(0)-1).to(device))
+    loss = -torch.mean(evals)
 
-    return loss
+    return loss, torch.mm(L.t(), V[:,0:10])
 
 
 

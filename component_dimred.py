@@ -94,12 +94,12 @@ def compute_componentmat(savepath = './output/', dataset = 'mat', dimreduce='pca
         compmat[windowinds,:] = compmatold
 
     printout(compmat.shape)
-    h5f = h5py.File(savepath + dimreduce + 'mat.h5', 'w')
+    h5f = h5py.File(savepath + dimreduce +'_'+str(num_textures) + '_' +str(max_patches)+ '_mat.h5', 'w')
     h5f.create_dataset('dat', data=compmat, compression='gzip')
     h5f.close()
 
 def main():
-    compute_componentmat(dimreduce='pca', use_window = True, num_textures = 10, max_patches = 800)
+    compute_componentmat(dimreduce='pca', use_window = True, num_textures = 40, max_patches = 5000)
 
 
 

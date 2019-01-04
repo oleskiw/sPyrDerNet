@@ -6,7 +6,7 @@ from .genutils import *
 class V2PCA(nn.Module):
 
 
-    def __init__(self, imgSize, K=4, N=2, includeHF=True, nonlin='quadratic', pcaMat = None, window = None, ret_pyr = False, ncomp=32):
+    def __init__(self, imgSize, K=4, N=2, includeHF=True, nonlin='smoothabs', pcaMat = None, window = None, ret_pyr = False, ncomp=32):
         super(V2PCA, self).__init__()
 
         '''

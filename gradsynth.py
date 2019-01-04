@@ -14,22 +14,11 @@ from torch.optim import SGD
 np.set_printoptions(suppress=True)
 np.random.seed(5)
     
- 
 
-def choose_impatch(imarr,expressmat, method = 'rand', comp_indices = None, num_patches = None):
-    '''
-    input: 
-    imarr: (array of image patches)
-    expressmat: component expression mat given by running images through v2pca network
-    method: possible methods for choosing image patches to run component synthesis
-            all methods include white noise image as first image
-            rand: choose random patches from the provided patch array imarr
-            minmax: choose two patches for each component in comp_indices that have min and max expression in that component
-            dist: choose three patches min,max,and median expression in components in comp_indices
-    comp_indices: list of component indices 
-    num_patches: for 'rand' method only- provide number of patches to select        
-    '''
-    pass
+
+
+
+
 
 def compute_componentmat(savepath = './output/', dataset='mat', dimreduce='pca', use_window=True, num_textures=10, max_patches=800):
     """
@@ -55,7 +44,7 @@ def compute_componentmat(savepath = './output/', dataset='mat', dimreduce='pca',
 
     printout("Data loaded, impatch shape:" +  str(impatch.shape))
     printout("Building pyramid...")
-    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='quadratic', window = None, pcaMat = None, ret_pyr = False, ncomp=32)
+    network = V2PCA(imgSize=impatch.shape[1], K=4, N=2, nonlin='smoothabs', window = None, pcaMat = None, ret_pyr = False, ncomp=32)
     x = impatch.reshape([impatch.shape[0], 1, impatch.shape[1], impatch.shape[2]])
     x = torch.tensor(x, dtype=dtype).to(device)
     coeff = network(x)
