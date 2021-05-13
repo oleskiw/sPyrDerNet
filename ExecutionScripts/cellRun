@@ -1,0 +1,13 @@
+#!/bin/sh
+module load gcc python3/3.6.2 cuda/10.1.105_418.39
+source ~/py36/bin/activate
+cd ~/dev/sPyrDerNet/
+
+
+units=('a.2.35' 'a.2.48' 'a.2.50' 'a.2.51')
+
+for n in "${units[@]}"
+do
+	eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_6o_2 ../sPyrDerNet_data/output_6o_2 -smax 1000 -smin 500 -l 0 .02 .04 .08 .12 .16 .20 -p 5 -step .00005 -stepn .05 -f ${n}.mat -fo ${n}_out.mat "
+	eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_6o_3 ../sPyrDerNet_data/output_6o_3 -smax 1000 -smin 500 -l 0 .02 .04 .08 .12 .16 .20 -p 5 -step .00005 -stepn .05 -f ${n}.mat -fo ${n}_out.mat "
+done

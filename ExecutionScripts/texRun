@@ -1,0 +1,11 @@
+#!/bin/sh
+module load gcc python3/3.6.2 cuda/10.1.105_418.39
+source ~/py36/bin/activate
+cd ~/dev/sPyrDerNet/
+~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .015 -p 1 -step .00020 -f a.1.21.toy.b1.mat -fo a.1.21.toy.b1_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .005 .01 .0125 .015 .0175 .02 .025 .03 -p 4 -step .0002 -f a.1.21.toy.b1.mat -fo a.1.21.toy.b1_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .005 .01 .0125 .015 .0175 .02 .025 .03 -p 4 -step .0002 -f a.1.21.toy.b2.mat -fo a.1.21.toy.b2_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .005 .01 .0125 .015 .0175 .02 .025 .03 -p 4 -step .0002 -f a.1.21.toy.b3.mat -fo a.1.21.toy.b3_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .005 .01 .0125 .015 .0175 .02 .025 .03 -p 4 -step .0002 -f a.1.21.toy.b4.mat -fo a.1.21.toy.b4_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/toy ../sPyrDerNet_data/toy -smax 2000 -smin 500 -l .005 .01 .0125 .015 .0175 .02 .025 .03 -p 4 -step .0002 -f a.1.21.toy.b5.mat -fo a.1.21.toy.b5_out.mat
+

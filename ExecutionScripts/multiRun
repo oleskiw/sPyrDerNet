@@ -1,0 +1,31 @@
+#!/bin/sh
+module load gcc python3/3.6.2 cuda/10.1.105_418.39
+source ~/py36/bin/activate
+cd ~/dev/sPyrDerNet/
+
+#units=('3')
+units=('1' '2' '3' '4' '5')
+do_optim=true
+do_optimFinal=true
+
+if $do_optim
+then
+	for n in "${units[@]}"
+	do
+		eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_multi_6o_2 ../sPyrDerNet_data/output_multi_6o_2 -smax 800 -smin 400 -u ${n} -l 0.1 .2 .4 .6 .8 1 -p 3 -nl 0 1 -1 -step .00001 -stepn .05 -f m685p1#6_C5.mat -fo m685p1#6_${n}_out.mat"
+		eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_multi_6o_3 ../sPyrDerNet_data/output_multi_6o_3 -smax 800 -smin 400 -u ${n} -l 0.1 .2 .4 .6 .8 1 -p 3 -nl 0 1 -1 -step .00001 -stepn .05 -f m685p1#6_C5.mat -fo m685p1#6_${n}_out.mat"
+	done
+fi
+
+if $do_optimFinal
+then
+	for n in "${units[@]}"
+	do
+		eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_multi_6o_2 ../sPyrDerNet_data/output_multi_6o_2_final -smax 800 -smin 400 -u ${n} -l .1 .4 .6 .8 -p 0 -nl 0 1 -1 -step .00001 -stepn .05 -f m685p1#6_C5.mat -fo m685p1#6_${n}_out.mat"
+		eval "~/py36/bin/python main.py ../sPyrDerNet_data/input_multi_6o_3 ../sPyrDerNet_data/output_multi_6o_3_final -smax 800 -smin 400 -u ${n} -l .1 .4 .6 .8 -p 0 -nl 0 1 -1 -step .00001 -stepn .05 -f m685p1#6_C5.mat -fo m685p1#6_${n}_out.mat"
+	done
+fi
+
+
+
+

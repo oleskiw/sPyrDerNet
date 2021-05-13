@@ -1,0 +1,27 @@
+#!/bin/sh
+module load gcc python3/3.6.2 cuda/10.1.105_418.39
+source ~/py36/bin/activate
+cd ~/dev/sPyrDerNet/
+#protos
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 200 -smin 100 -l 0.1 -step .00005 -stepn .01 -p 6 -type 1 0 -f mpb_MPn_3.mat -fo mpb_MPn_3_T_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 200 -smin 100 -l 0.1 -step .00005 -stepn .01 -p 6 -type 1 0 -f mpb_HAZn_3.mat -fo mpb_HAZn_3_T_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 200 -smin 300 -l 0.01 -step .00005 -stepn .01 -p 6 -type 1 0 -f mpb_HAZn_P_3.mat -fo mpb_HAZn_P_3_T_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 200 -smin 100 -l .01  -p 1 -type 1 0 -f mpb_HAZ_P_1.3.mat -fo mpb_HAZ_P_1.3_T_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 500 -smin 100 -l 0  -p 1 -type 1 0 -f mpb_HAZ_PX_2.mat -fo mpb_HAZ_PX_1.3_T_out.mat
+
+#batch for 3 normalized
+~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 500 -l 0 .001 .002 .004 .008 .016 -step .00005 -stepn .005 -p 6 -f mpb_HAZn_3.mat -fo mpb_HAZn_3_out3.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 500 -l 0 .001 .002 .004 .008 .016  -step .00001 -stepn .002 -p 6 -f mpb_HAZn_P_3.mat -fo mpb_HAZn_P_3_out3.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 500 -l 0 .001 .002 .004 .008 .016  -step .00001 -stepn .002 -p 6 -f mpb_MPn_3.mat -fo mpb_MPn_3_out3.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 500 -l 0 .001 .002 .004 .008 .016  -step .00001 -stepn .002 -p 6 -f mpb_MPn_P_3.mat -fo mpb_MPn_P_3_out3.mat
+
+
+#batch for 1.2
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 500 -smin 200 -l 0 .001 .002 .004 .008 .016 -p 6 -type 1 0 -f mpb_HAZ_1.3.mat -fo mpb_HAZ_1.3_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 500 -smin 200 -l 0 .005 .01 .02 .04 .08 .16 -p 6 -type 1 0 -f mpb_MP_1.3.mat -fo mpb_MP_1.3_out.mat#
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 500 -smin 200 -l 0 .005 .01 .02 .04 .08 .16  -p 6 -type 1 0 -f mpb_HAZ_P_1.3.mat -fo mpb_HAZ_P_1.3_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 500 -smin 200 -l 0 .025 .05 .1 .2 .4 .8 -p 6 -type 1 0 -f mpb_MP_P_1.3.mat -fo mpb_MP_P_1.3_out.mat
+
+#batch for 1.6
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 200 -l 0 .005 .01 .02 .04 .08 .16  -p 6 -type 1 0 -f mpb_HAZ_1.6.mat -fo mpb_HAZ_1.6_out.mat
+#~/py36/bin/python main.py ../sPyrDerNet_data/mpb_dir ../sPyrDerNet_data/mpb_dir -model 'v2mpb' -smax 1000 -smin 200 -l 0 .05 .1 .5 1 2 4 8  -p 6 -type 1 0 -f mpb_HAZ_P_1.6.mat -fo mpb_HAZ_P_1.6_out.mat

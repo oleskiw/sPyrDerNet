@@ -6,7 +6,7 @@ import os
 import glob
 from skimage.io import imread
 from skimage.transform import resize
-from models.v2pca import *
+from v2 import *
 
 
 def extract_patches_full(large_ims, patchsize, num_ims, max_patches):
@@ -45,9 +45,9 @@ def loadmodel_mat(data_path=None):
     components = np.array(datamodel['dataModel'][0][0]['components'])
     transferFunction = datamodel['dataModel'][0][0]['transferFunction'][0]
 
-    return V2PCA(imgSize=64, K=4, N=2,
-                 transferFunction=transferFunction, components=components, weights=weights,
-                 ncomp=32)
+    return V2(imgSize=64, K=4, N=2,
+              transferFunction=transferFunction, components=components, weights=weights,
+              ncomp=32)
 
 
 def loadtargets_mat(data_path=None):
