@@ -27,15 +27,17 @@ def main():
                         help='Add regularization value to optimization list.')
     parser.add_argument('-u', action='append', nargs='+', dest='units', default=[], type=int, choices=range(1,1000),
                         help='units to parse')
-    parser.add_argument('-b', action='store', dest='bsf', default=.25, type=float,
+    parser.add_argument('-b', action='store', dest='bsf', default='.2', type=float,
                         help='Batch size fraction.')
     parser.add_argument('-nl', action='store', dest='nl', nargs=3, default=[], type=float,
                         help='Output nonlinearity coefficients')
-    parser.add_argument('-step', action='store', default='.0005', type=float,
+    parser.add_argument('-reg', action='store', nargs='?', dest='use_regweights', default=False, type=bool,
+                        help='use regularization scaling weights')
+    parser.add_argument('-step', action='store', default='.00001', type=float,
                         help='Set pyramid step size.')
     parser.add_argument('-stepn', action='store', default='.1', type=float,
                         help='stet nonlinear transform step size.')
-    parser.add_argument('-model', action='store', nargs=1, default='v2', type=str, choices=('v2', 'v2mpb'),
+    parser.add_argument('-model', action='store', nargs=1, default='v2', type=str, choices=('v2', 'v2pos', 'v2mpb'),
                         help='V2 model to fit')
     parser.add_argument('-smax', action='store', default='3000', type=int,
                         help='Maximum number of optimization steps.')
@@ -63,16 +65,24 @@ def main():
 
     if args.model == ['v2mpb']:
         model_V2 = V2MPBFIT
-        model_nl = 1;
+        model_nl = 1
+    elif args.model == ['v2pos']:
+        model_V2 = V2FIT
+        coeff_pos = True
+        model_nl = 2
     else:
         model_V2 = V2FIT
-        model_nl = 2;
+        coeff_pos = False
+        model_nl = 2
+
+    use_regweights = args.use_regweights
+    coeff_output = args.nl
 
     batchSizeFraction = args.bsf
     #flatten lambdaSet
     lambdaSet = [item for sublist in lambdaSet for item in sublist]
 
-    #flatten units units
+    #flatten units
     unitSet = [item for sublist in unitSet for item in sublist]
     unitSetIndex = np.array(unitSet)-1;
 
@@ -116,6 +126,16 @@ def main():
             dataInitOut = torch.tensor(np.array(datafile['neuronData']['initOut']), dtype=dtype, device=torch.device("cpu"))
             dataRegWeights = torch.tensor(np.array(datafile['neuronData']['regWeight']), dtype=dtype, device=torch.device("cpu"))
 
+            # clear reg weights if not used
+            if use_regweights == False:
+                dataRegWeights = torch.ones(size=dataRegWeights.size(), dtype=dtype, device=torch.device("cpu"))
+                dataRegWeights = dataRegWeights / torch.norm(dataRegWeights,p=2)
+
+            # store output coefficients
+            if not (coeff_output) == False:
+                dataInitOut = torch.tensor(np.array([[coeff_output[0]], [coeff_output[1]], [coeff_output[2]]]),
+                                           dtype=dtype, device=torch.device("cpu"))
+
             #override output coeffients
             if len(args.nl) == 3:
                 nl = np.tile(np.array(args.nl).reshape([3,1]),(1,dataInitOut.shape[1]))
@@ -126,6 +146,8 @@ def main():
             dataInitIn = dataInitIn[:, unitSetIndex]
             dataInitOut = dataInitOut[:, unitSetIndex]
             dataRegWeights = dataRegWeights[:, unitSetIndex]
+
+
 
             if dataResponse.shape[0] == 1:
                 dataResponse = dataResponse.transpose()
@@ -147,7 +169,7 @@ def main():
             testDataloader = torch.utils.data.DataLoader(testDataset, batch_size=99999, pin_memory=True, shuffle=False)
 
             #run optimization
-            optimItem = optimize_network(model_V2, model_nl, fitDataloader, testDataloader,
+            optimItem = optimize_network(model_V2, model_nl, coeff_pos, fitDataloader, testDataloader,
                                        dataInitRf, dataInitIn, dataInitOut, dataRegWeights,
                                        stepSize, lambdaSet[l], p, stepMax, stepMin, False)
 
@@ -161,7 +183,7 @@ def main():
     saveoutput_mat(outputDir + '/' + foutname , data=dataOutLambdas)
 
 
-def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
+def optimize_network(V2MODEL, model_nl, coeff_pos, fitDataloader, testDataloader,
     dataInitRf, dataInitIn, dataInitOut, dataRegWeights,
     stepSize, lambdaValue, partitionValue, epocMax, epocMin, DO_BATCH):
 
@@ -178,13 +200,13 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
     if fitResponse.ndim == 1:
         fitResponse = fitResponse.unsqueeze(1)
         fitWeights = fitWeights.unsqueeze(1)
-    modelFit = V2MODEL(fitStim, model_nl)
+    modelFit = V2MODEL(fitStim, model_nl, coeff_pos)
     testDataset = testDataloader.dataset
     testStim, testResponse, testWeights = testDataset.__getitem__(range(testDataset.__len__()))
     if testResponse.ndim == 1:
         testResponse = testResponse.unsqueeze(1)
         testWeights = testWeights.unsqueeze(1)
-    modelTest = V2MODEL(testStim, model_nl)
+    modelTest = V2MODEL(testStim, model_nl, coeff_pos)
 
     #if not doing batch learning, get all data onto gpu
     if DO_BATCH == False:
@@ -192,7 +214,7 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
         if fitResponseDevice.ndim == 1:
             fitResponseDevice = fitResponseDevice.unsqueeze(1)
             fitWeightsDevice = fitWeightsDevice.unsqueeze(1)
-        fitModelDevice = V2MODEL(fitStimDevice, model_nl)
+        fitModelDevice = V2MODEL(fitStimDevice, model_nl, coeff_pos)
 
     spyrDescender.requires_grad_()
     inTransferDescender.requires_grad_()
@@ -208,7 +230,7 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
     optimizer = SGD([
         {'params': spyrDescender, 'lr': stepSize[0], 'momentum': 0.9},
         # {'params': inTransferDescender, 'lr': stepSize[1], 'momentum': 0.25},
-        {'params': outTransferDescender, 'lr': stepSize[2], 'momentum': 0.7}
+        {'params': outTransferDescender, 'lr': stepSize[2], 'momentum': 0.9}
     ])
 
     resultSpyr = []
@@ -244,13 +266,9 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
     dstr = lambda x: ("%1.3F_" % w for w in getdatum(x))
     np.set_printoptions(formatter={"float_kind": lambda x: "%2.2f" % x})
 
-    order = 1
-    if order == 1:
-        lambdaScale = 1;
-    elif order == 2:
-        lambdaScale = 10;
+
     ln = int(spyrDescender.shape[0] / 2)
-    a = lambdaValue * lambdaScale
+    a = 1 * lambdaValue
 
     stopFlag = False
     stepCount = 0
@@ -267,17 +285,18 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
                 optimizer.zero_grad()
 
                 #apply model to data
-                batchModel = V2MODEL(batchStim, model_nl)
+                batchModel = V2MODEL(batchStim, model_nl, coeff_pos)
                 batchPrediction = batchModel(spyrDescender, inTransferDescender, outTransferDescender)
 
-                #compute objectives
-                rBatchNorm = torch.sqrt(torch.sum((torch.pow(batchResponse, 2) * batchWeights),0))
-                batchRate = torch.sqrt(torch.sum((torch.pow((batchPrediction.t() - batchResponse), 2) * batchWeights),0)) / rBatchNorm
-                batchReg = a * .01 * torch.sum(regWeights[range(ln),:]*(((spyrDescender[range(ln),:])**2 + (spyrDescender[range(ln, 2*ln),:])**2)**(1/2)),0)
-                batchRegNls = a * .001 * (torch.sqrt(inTransferDescender**2).squeeze() + torch.sqrt(torch.sum(outTransferDescender**2,0)))
-                #batchSparsity = a * (torch.mean(((batchPrediction-torch.mean(batchPrediction))/torch.std(batchPrediction))**4))
-                #final loss and gradient
-                loss = torch.norm(batchRate + batchReg + batchRegNls, p=2) #+ batchSparsity  + objRegSmooth
+                # #if use, update with latest objective
+                # #compute objectives
+                # rBatchNorm = torch.sqrt(torch.sum((torch.pow(batchResponse, 2) * batchWeights),0))
+                # batchRate = torch.sqrt(torch.sum((torch.pow((batchPrediction.t() - batchResponse), 2) * batchWeights),0)) / rBatchNorm
+                # batchReg = torch.norm(regWeights[range(ln),:]*(((spyrDescender[range(ln),:]) ** 2 + (spyrDescender[range(ln, 2*ln),:]) ** 2) ** (1/2)),p=order, dim=0)
+                # batchRegNls = torch.norm(outTransferDescender[range(0,3)], p=2)
+                # #batchSparsity = a * (torch.mean(((batchPrediction-torch.mean(batchPrediction))/torch.std(batchPrediction))**4))
+                # #final loss and gradient
+                # loss = torch.norm(batchRate + (batchReg*batchRegNls), p=1) #+ batchSparsity  + objRegSmooth
                 loss.backward()
 
                 #take a step
@@ -294,11 +313,13 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
                 # compute objectives
                 rBatchNorm = torch.sqrt(torch.sum((torch.pow(fitResponseDevice, 2) * fitWeightsDevice), 0))
                 batchRate = torch.sqrt(torch.sum((torch.pow((fitPredictionDevice.t() - fitResponseDevice), 2) * fitWeightsDevice), 0)) / rBatchNorm
-                batchReg = a * .01 * torch.sum(regWeights[range(ln), :]*(((spyrDescender[range(ln), :]) ** 2 + (spyrDescender[range(ln, 2 * ln), :]) ** 2) ** (1 / 2)),0)
-                batchRegNls = a * .001 * ((torch.sqrt(inTransferDescender ** 2)).squeeze() + torch.sqrt(torch.sum(outTransferDescender ** 2, 0)))
+                batchReg2 = torch.norm(regWeights[range(ln), :]*(((spyrDescender[range(ln), :]) ** 2 + (spyrDescender[range(ln, 2 * ln), :]) ** 2) ** (1 / 2)),p=2, dim=0)
+                batchReg1 = torch.norm(regWeights[range(ln), :]*(((spyrDescender[range(ln), :]) ** 2 + (spyrDescender[range(ln, 2 * ln), :]) ** 2) ** (1 / 2)), p=1, dim=0)
+                batchReg = a*(batchReg1/batchReg2)
+                batchRegNls = torch.norm(outTransferDescender[range(0,3)], p=2)
                 # batchSparsity = a * (torch.mean(((batchPrediction-torch.mean(batchPrediction))/torch.std(batchPrediction))**4))
                 # final loss and gradient
-                loss = torch.norm(batchRate + batchReg + batchRegNls, p=2)  # + batchSparsity  + objRegSmooth
+                loss = torch.norm(batchRate + (batchReg), p=1)  # + batchSparsity  + objRegSmooth
                 loss.backward()
 
                 # take a step
@@ -311,8 +332,10 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
         #compute proper fit/test explained variance
         objFitRate = torch.sqrt(torch.sum(torch.pow((fitPrediction.t() - fitResponse), 2) * fitWeights,0)) / rFitNorm
         objTestRate = torch.sqrt(torch.sum(torch.pow((testPrediction.t() - testResponse), 2) * testWeights,0)) / rTestNorm
-        objReg = a * .01 * torch.sum((((regWeights[range(ln),:]*spyrDescender[range(ln),:])**2) + ((regWeights[range(ln, 2*ln),:]*spyrDescender[range(ln, 2*ln),:])**2))**(1/2),0)
-        objRegNls = a * .001 * (torch.sqrt(inTransferDescender**2).squeeze() + torch.sqrt(torch.sum(outTransferDescender**2,0)))
+        objReg2 = torch.norm((((regWeights[range(ln),:]*spyrDescender[range(ln),:])**2) + ((regWeights[range(ln, 2*ln),:]*spyrDescender[range(ln, 2*ln),:])**2))**(1/2),p=2, dim=0)
+        objReg1 = torch.norm((((regWeights[range(ln),:]*spyrDescender[range(ln),:])**2) + ((regWeights[range(ln, 2*ln),:]*spyrDescender[range(ln, 2*ln),:])**2))**(1/2),p=1, dim=0)
+        objReg = a*(objReg1/objReg2)
+        objRegNls = torch.norm(outTransferDescender[range(0,3)], p=2)
 
         fitEv = (1 - (torch.var(fitResponse.t() - fitPrediction, 1) / torch.var(fitResponse)))
         testEv = (1 - (torch.var(testResponse.t() - testPrediction, 1) / torch.var(testResponse)))
@@ -322,9 +345,11 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
             print("-- epoc %3i " % epocCount + " step %4i " % stepCount +
                   "| FitRate: "+ "".join(dstr(objFitRate)) +
                   ", TestRate: "+ "".join(dstr(objTestRate)) +
-                  ", RegSpyr: "+ "".join(dstr(objReg)) +
+                  ", Reg: " + "".join(dstr(objReg)) +
+                  ", Reg1: "+ "".join(dstr(objReg1)) +
+                  ", Reg2: " + "".join(dstr(objReg2)) +
                   #", RegSmooth: " + float_formatter(objRegSmooth.detach().numpy()) +
-                  ", RegNonlin: "+ "".join(dstr(objRegNls)) +
+                  #", RegNonlin: %.4f" % objRegNls +
                   ", TestEv: "+"".join(dstr(testEv)) + " Max: "+ "".join(dstr(testEvMax)))
             sys.stdout.flush()
             #print("  resp: " + str(fitResp[0, range(7)].detach().numpy()))
@@ -406,6 +431,11 @@ def optimize_network(V2MODEL, model_nl, fitDataloader, testDataloader,
                    'initRf': getdatum(dataInitRf),
                    'initIn': getdatum(dataInitIn),
                    'initOut': getdatum(dataInitOut)}
+
+    # do not store spyr for every step on all partitions
+    if partitionValue > 1:
+        resultSpyr = {}
+
 
     #check for 0 partition (no test set) and overwrite bestsol
     if partitionValue == 0:

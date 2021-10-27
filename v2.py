@@ -61,7 +61,7 @@ class V2(nn.Module):
 
 class V2FIT(nn.Module):
 
-    def __init__(self, stimuli, model_nl):
+    def __init__(self, stimuli, model_nl, coeff_pos):
         super(V2FIT, self).__init__()
 
         """
@@ -70,7 +70,12 @@ class V2FIT(nn.Module):
         if model_nl == 1:
             self.nl = lambda x, a, b: a + b * x
         elif model_nl == 2:
-            self.nl = lambda x, a, b, c: a.repeat(x.shape[1],1).t() + b.repeat(x.shape[1],1).t() * nn.functional.relu(x) + c.repeat(x.shape[1],1).t() * nn.functional.relu(x)
+            self.nl = lambda x, a, b, c: a.repeat(x.shape[1],1).t() + b.repeat(x.shape[1],1).t() * nn.functional.relu(x) + c.repeat(x.shape[1],1).t() * nn.functional.relu(-x)
+
+        if coeff_pos:
+            self.coeffnl = lambda x: torch.abs(x)
+        else:
+            self.coeffnl = lambda x: x
 
         self.stimuli = stimuli
         self.stimLength = self.stimuli.size(1)
@@ -78,7 +83,7 @@ class V2FIT(nn.Module):
     def forward(self, spyr, inTran, outTran):
 
 
-        model_response = torch.mm(spyr.t(),  self.stimuli.t());
+        model_response = torch.mm(self.coeffnl(spyr.t()),  self.stimuli.t());
         output_response = self.nl(model_response, outTran[0,:], outTran[1,:], outTran[2,:])
 
         #output_response = outTran[0] + outTran[1] * (model_response) + outTran[2] * torch.pow((model_response), 2)
